@@ -46,20 +46,16 @@ pub fn main_js() -> Result<(), JsValue> {
             if let Some(success_tx) = success_tx.lock().ok().and_then(|mut opt| opt.take()) {
                 success_tx.send(Ok(()));
             }
-            // success_tx.lock().and_then(|oneshot| Ok(oneshot.send(Ok(()))));
-            // web_sys::console::log_1(&JsValue::from_str("loaded"));
         });
 
         let error_callback = Closure::once(move |err| {
             if let Some(error_tx) = error_tx.lock().ok().and_then(|mut opt| opt.take()) {
                 error_tx.send(Err(err));
             }
-            // success_tx.send(Err(err));
         });
 
         image.set_onload(Some(callback.as_ref().unchecked_ref()));
         image.set_onerror(Some(error_callback.as_ref().unchecked_ref()));
-        // callback.forget();
         image.set_src("rhg.png");
 
         success_rx.await;
