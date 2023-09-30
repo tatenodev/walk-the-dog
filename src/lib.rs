@@ -1,10 +1,12 @@
 use std::rc::Rc;
 use std::sync::Mutex;
+use std::collections::HashMap;
 
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::console;
 use rand::prelude::*;
+use serde::Deserialize;
 
 
 // When the `wee_alloc` feature is enabled, this uses `wee_alloc` as the global
@@ -13,8 +15,25 @@ use rand::prelude::*;
 // If you don't want to use `wee_alloc`, you can safely delete this.
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAllofc::INIT;
 
+#[derive(Deserialize)]
+struct Sheet {
+    frames: HashMap<String, Cell>,
+}
+
+#[derive(Deserialize)]
+struct Rect {
+    x: u16,
+    y: u16,
+    w: u16,
+    h: u16,
+}
+
+#[derive(Deserialize)]
+struct Cell {
+    frame: Rect,
+}
 
 // This is like the `main` function, except for JavaScript.
 #[wasm_bindgen(start)]
@@ -61,10 +80,22 @@ pub fn main_js() -> Result<(), JsValue> {
         success_rx.await;
         context.draw_image_with_html_image_element(&image, 0.0, 0.0);
 
+        let json = fetch_json("rhb.json").await.expect("Cloud not fetch rnb.json");
+        let sheet: Sheet = json.into_serde().expect("Could not convert rhb.json into a Sheet structure");
+
         sierpinski(&context, [(300.0, 0.0), (0.0, 600.0), (600.0, 600.0)], (0, 255, 0), 5);
     });
 
     Ok(())
+}
+
+async fn fetch_json(json_path: &str) -> Result<JsValue, JsValue> {
+    let window = web_sys::window().unwrap();
+    let resp_value = wasm_bindgen_futures::JsFuture::from(window.fetch_with_str(json_path)).await?;
+    let resp: web_sys::Response = resp_value.dyn_into()?;
+
+    wasm_bindgen_futures::JsFuture::from(resp.json()?).await
+
 }
 
 fn draw_triangle(context: &web_sys::CanvasRenderingContext2d, points: [(f64, f64); 3], color: (u8, u8, u8)) {
